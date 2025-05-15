@@ -1,0 +1,205 @@
+
+
+echo ""
+echo ""
+echo "AWS_PROFILE to be used is >>> $AWS_PROFILE"
+echo ""
+
+
+
+unset DAY_CLUSTER_NAME
+unset cluster_ip
+unset cluster_names
+unset selected_cluster
+unset cluster
+unset DAY_CLUSTER_NAME
+
+# Check if the script is running in Zsh and emulate Zsh behavior
+if [ -n "$ZSH_VERSION" ]; then
+    emulate -L zsh  # Ensure Zsh behaves like Zsh (if required)
+
+    # Check if the script is sourced or executed
+    if [ -n "$ZSH_EVAL_CONTEXT" ] && [[ "$ZSH_EVAL_CONTEXT" =~ :file$ ]]; then
+        echo "This script is sourced."
+    else
+        echo "Error: This script must be sourced, not executed directly. Use 'source $0' to run."
+        return 3
+    fi
+fi
+
+# Activate or create the Daylily CLI conda environment
+if conda env list | grep  "DAYCLI"; then
+    echo "Conda environment 'DAYCLI' already exists."
+    conda activate DAYCLI
+else
+    echo "'DAYCLI' environment not found. Attempting to create..."
+    source bin/init_daylily.sh
+
+fi
+
+if [ -z "$AWS_PROFILE" ]; then
+    echo "Error: AWS_PROFILE is not set."
+    return 3  # Exit the function with an error status
+fi
+
+# Ensure the script is sourced, not executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "This script must be sourced, not executed directly. Use 'source THISSCRIPT' to run."
+    exit 1
+fi
+#!/bin/bash
+
+
+# Use a known valid region to retrieve the list of available regions
+DEFAULT_REGION="us-west-2"
+
+
+
+
+# Function to list AWS regions and prompt user to select one
+select_aws_region() {
+    echo "Retrieving available AWS regions using profile: $AWS_PROFILE..."
+
+    # Retrieve the list of AWS regions, separated by newlines
+    regions=$(aws ec2 describe-regions \
+        --profile "$AWS_PROFILE" \
+        --region "$DEFAULT_REGION" \
+        --query "Regions[].RegionName" \
+        --output text 2>/dev/null | tr '\t' '\n')
+
+    # Check if regions were retrieved successfully
+    if [[ -z "$regions" ]]; then
+        echo "Error: Unable to retrieve AWS regions. Please check your AWS CLI configuration."
+        return 3
+    fi
+
+    # Convert regions into an array
+    region_array=()
+    while IFS= read -r regionopt; do
+        region_array+=("$regionopt")
+    done <<< "$regions"
+
+    # Display the list of regions and prompt user to select one
+    echo "Available AWS Regions:"
+    select region in "${region_array[@]}"; do
+        if [[ -n "$region" ]]; then
+            echo "You selected: $region"
+            export AWS_SELECTED_REGION="$region"
+            break
+        else
+            echo "Invalid selection. Please try again."
+        fi
+    done
+}
+
+# Call the function to list and select AWS region
+select_aws_region
+if [[ -z "$AWS_SELECTED_REGION" ]]; then
+    echo "AWS_SELECTED_REGION is not set. please be sure your AWS_PROFILE is set correctly (is is _ $AWS_PROFILE _. Valid options are:"
+    echo "...." $(grep '\[' ~/.aws/credentials | perl -pe 's/(\[|\])//g;')
+    return 4;
+fi
+
+
+
+# Function to list PEM files and prompt user to select one
+select_pem_file() {
+    echo "Listing available PEM files in ~/.ssh:"
+
+    # Initialize an empty array
+    pem_files=()
+
+    # Populate the array using a loop over the output of ls
+    while IFS= read -r file; do
+        pem_files+=("$file")
+    done < <(ls -1 ~/.ssh/*.pem 2>/dev/null)
+
+    # Check if any PEM files were found
+    if [[ ${#pem_files[@]} -eq 0 ]]; then
+        echo "Error: No PEM files found in ~/.ssh."
+        return 1
+    fi
+
+    echo "Select a PEM file:"
+    select selected_pem in "${pem_files[@]}"; do
+        if [[ -n "$selected_pem" ]]; then
+            echo "You selected: $selected_pem"
+            export DAY_PEM="$selected_pem"
+            break
+        else
+            echo "Invalid selection. Please try again."
+        fi
+    done
+}
+unset DAY_PEM
+select_pem_file
+
+# Check if DAY_PEM is set, if not prompt user to select one
+if [[ -z "$DAY_PEM" ]]; then
+    echo "DAY_PEM is not set. Prompting user to select a PEM file..."
+    select_pem_file || return 1  # Exit if no valid selection
+fi
+
+# Function to list clusters and prompt user to select one
+select_cluster_name() {
+    echo "Retrieving available clusters in region $region..."
+
+    # Initialize an empty array for cluster names
+    cluster_names=()
+
+    # Populate the array using a while loop over the command output
+    while IFS= read -r line; do
+        cluster_name=$(echo "$line" | perl -pe 's/.*\: \"(.*)\"\,.*/\1/g')
+        cluster_names+=("$cluster_name")
+
+    done < <(pcluster list-clusters --region "$region"  | grep 'clusterName')
+    echo "Cluster names: ${cluster_names}"
+    # Check if any clusters were found
+    if [[ ${#cluster_names[@]} -eq 0 ]]; then
+        echo "Error: No clusters found in region $region."
+        is your AWS_PROFILE set correctly?
+        return 3
+    fi
+
+    echo "Select a cluster:"
+    select selected_cluster in "${cluster_names[@]}"; do
+        if [[ -n "$selected_cluster" ]]; then
+            echo "You selected: $selected_cluster"
+            export DAY_CLUSTER_NAME="$selected_cluster"
+            break
+        else
+            echo "Invalid selection. Please try again."
+        fi
+    done
+}
+
+
+# Check if DAY_CLUSTER_NAME is set, if not prompt user to select one
+if [[ -z "$DAY_CLUSTER_NAME" ]]; then
+    echo "DAY_CLUSTER_NAME is not set. Prompting user to select a cluster..."
+    select_cluster_name || return 1  # Exit if no valid selection
+fi
+
+# Retrieve the cluster's public IP address
+echo "Fetching public IP address for cluster '$DAY_CLUSTER_NAME'..."
+echo "Region: $region , Cluster Name: $DAY_CLUSTER_NAME , AWS_PROFILE: $AWS_PROFILE"
+cluster_ip=$(pcluster describe-cluster --region "$region" -n "$DAY_CLUSTER_NAME" \
+    | grep 'publicIpAddress' | perl -pe 's/.*\: \"(.*)\"\,.*/\1/g')
+
+if [[ -z "$cluster_ip" ]]; then
+    echo "Error: Unable to retrieve the public IP address of the cluster."
+    return 1
+fi
+
+echo "Cluster IP address: $cluster_ip"
+
+# Connect to the head node via SSH using the selected PEM file
+echo "Connecting to the head node at $cluster_ip using PEM: $DAY_PEM..."
+ssh -i "$DAY_PEM" ubuntu@"$cluster_ip" \
+    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+
+unset region
+unset pem_files
+unset selected_pem
+unset cluster_names
+unset selected_cluster

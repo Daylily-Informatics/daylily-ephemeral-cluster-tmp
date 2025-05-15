@@ -1,0 +1,9 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.vscode/
+etc/about_me.yaml
+
+./create_daylily_s3_
+

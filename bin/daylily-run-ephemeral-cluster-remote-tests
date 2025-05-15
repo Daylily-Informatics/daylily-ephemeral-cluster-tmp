@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# Daylily Headnode Configuration Script
+
+# Capture arguments for PEM file and region
+pem_file=$1
+region=$2
+aws_profile=$3
+duser="ubuntu"
+
+
+CONFIG_FILE="config/daylily_cli_global.yaml"
+
+git_tag=$(yq -r '.daylily.git_tag' "$CONFIG_FILE")
+git_repo=$(yq -r '.daylily.git_repo' "$CONFIG_FILE")
+
+# Ensure both PEM file and region are provided
+if [[ -z "$pem_file" || -z "$region" || -z "$aws_profile" ]]; then
+    echo "Error: You must provide both the PEM file path and the AWS region."
+    echo "Usage: source $0 /path/to/pem_file region profile"
+    return 1
+fi
+ 
+export AWS_PROFILE=$aws_profile
+
+# List available clusters in the specified region
+echo "Clusters detected in region $region using profile $AWS_PROFILE:"
+cluster_names=$(pcluster list-clusters --region $region | grep clusterName | awk '{print $2}' | cut -d '"' -f 2)
+
+# Check if there are any clusters detected
+if [[ -z "$cluster_names" ]]; then
+    echo "Error: No clusters found in region $region."
+    return 1
+fi
+# Convert detected cluster names into an array
+cluster_array=()
+while IFS= read -r cluster_name; do
+    cluster_array+=("$cluster_name")
+done <<< "$cluster_names"
+
+# Auto-select if there is only one cluster, otherwise prompt for selection
+if [[ ${#cluster_array[@]} -eq 1 ]]; then
+    selected_cluster=$cluster_array
+    echo "Only one cluster found: $selected_cluster. Auto-selecting it."
+else
+    echo "Select a cluster name:"
+    select selected_cluster in "${cluster_array[@]}"; do
+        if [[ -n "$selected_cluster" ]]; then
+            echo "You selected: $selected_cluster"
+            break
+        else
+            echo "Invalid selection, please try again."
+        fi
+    done
+fi
+cluster_name=$selected_cluster
+
+
+# Get the public IP address of the cluster's head node
+cluster_ip_address=$(pcluster describe-cluster-instances -n "$cluster_name" --region "$region" \
+    | grep publicIpAddress | perl -p -e 's/[ |"|,]//g;' | cut -d ':' -f 2)
+
+if [[ -z "$cluster_ip_address" ]]; then
+    echo "Error: Could not retrieve the public IP address of the cluster."
+    return 1
+fi
+
+echo "Cluster $cluster_name's public IP is $cluster_ip_address."
+echo " "
+
+# List available PEM files in the .ssh directory
+echo "Detected PEM files in ~/.ssh:"
+ls -1 ~/.ssh/*.pem
+
+# If PEM file is not provided as an argument, prompt the user
+if [[ -z "$pem_file" ]]; then
+    echo "Enter the full absolute path to your PEM file:"
+    read pem_file
+fi
+
+# Ensure the PEM file exists
+if [[ ! -f "$pem_file" ]]; then
+    echo "Error: PEM file '$pem_file' does not exist."
+    return 1
+fi
+
+
+echo "Would you like to remotely launch a workflow w/in a tmux session on the headnode? [y/n]"
+
+read REPLY
+if [[ "$REPLY" == "y" ]]; then
+
+    ssh -i "$pem_file" ubuntu@"$cluster_ip_address"  -o StrictHostKeyChecking=no   -o UserKnownHostsFile=/dev/null \
+        "sudo su - $duser -c 'mkdir -p /fsx/analysis_results/ubuntu/daylily_remote_test && cd /fsx/analysis_results/ubuntu/daylily_remote_test &&  git clone -b ${git_tag} ${git_repo} daylily'"
+
+    session_name="cluster_test_$(date +%s)"  
+    ssh -t -i "$pem_file" ubuntu@"$cluster_ip_address" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "tmux new-session -d -s \"$session_name\" \
+        \"bash -c 'source ~/.bashrc && cd /fsx/analysis_results/ubuntu/daylily_remote_test/daylily && source dyinit && source bin/day_activate slurm hg38 remote && DAY_CONTAINERIZED=true ./bin/day_run produce_snv_concordances -p -k -j 2 --config aligners=[\\\"strobe\\\",\\\"bwa2a\\\"] dedupers=[\\\"dppl\\\"] genome_build=\\\"hg38\\\" snv_callers=[\\\"deep\\\"]; bash'\"" && \
+
+    echo "Tmux session >>> '$session_name' <<< started on the remote server."
+    echo "You can monitor the session using the following command:"
+    echo "ssh -i \"$pem_file\" ubuntu@\"$cluster_ip_address\" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null 'tmux attach-session -t $session_name'"
+    echo "... or alternatively, you can SSH into the head node ( ssh -i $pem_file ubuntu@$cluster_ip_address )a, nd run ( tmux attach-session -t $session_name ) to monitor the session."
+fi
+
+
+
+echo ""
+echo " >>>>>> you may now access the headnode via the PCUI, via 'source bin/daylily-ssh-into-headnode', or SSH into the head node with the following command:"
+echo "        ssh -i $pem_file ubuntu@$cluster_ip_address"
+echo "        tmux ls"
+echo "        tmux a -t c"
+echo " "
+echo " "
+echo "...fin"
