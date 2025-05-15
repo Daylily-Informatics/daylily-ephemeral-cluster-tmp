@@ -76,7 +76,7 @@ if [[ "$s3_reference_data_version" != "0.7.131c" ]]; then
     exit 1
 else
     echo "Using Daylily S3 reference data version: $s3_reference_data_version"
-    source_bucket="daylily-references-public"
+    source_bucket="daylily-omics-analysis-references-public"
 fi
 
 
@@ -180,6 +180,8 @@ cmd_hg38_annotations="aws s3 cp s3://${source_bucket}/data/genomic_data/organism
 # Concordance Reads
 cmd_giab_reads="aws s3 cp s3://${source_bucket}/data/genomic_data/organism_reads s3://${new_bucket}/data/genomic_data/organism_reads --recursive --request-payer requester $accel_endpoint --metadata-directive REPLACE "
 
+# CRAMS
+cmd_giab_crams="aws s3 cp s3://${source_bucket}/data/cram_data s3://${new_bucket}/data/cram_data --recursive --request-payer requester $accel_endpoint --metadata-directive REPLACE "
 
 if [ "$disable_dryrun" = false ]; then
     echo "[Dry-run] Skipping S3 COPY commands, which would be:"
@@ -213,9 +215,11 @@ if [ "$disable_dryrun" = false ]; then
     if [ "$exclude_giab_reads" = true ]; then
         echo ">>>> THESE TO BE EXCLUDED"
         echo "$cmd_giab_reads"
+        echo "$cmd_giab_crams"
     else
         echo "THESE WILL BE INCLUDED"
         echo "$cmd_giab_reads"
+        echo "$cmd_giab_crams"
     fi
 else
 
@@ -285,11 +289,18 @@ else
     if [ "$exclude_giab_reads" = true ]; then
         echo "Skipping GIAB reads copy:"
         echo "$cmd_giab_reads"
+
+        echo "Skipping GIAB crams copy:"
+        echo "$cmd_giab_crams"
+
     else
         echo "NOW RUNNING 11 of 11"
         echo "...$cmd_giab_reads"
         $cmd_giab_reads >> $LOGFILE 2>&1 && echo "success" || echo ">>>FAILED<<< will be fatal if GIAB reads are needed" 
-    
+
+        echo "NOW RUNNING 12 of 11"
+        echo "...$cmd_giab_crams"
+        $cmd_giab_crams >> $LOGFILE 2>&1 && echo "success" || echo ">>>FAILED<<< will be fatal if GIAB crams are needed"    
     fi
 
 
