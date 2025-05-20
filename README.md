@@ -1,5 +1,5 @@
 # Daylily Ephemeral Cluster
-_(stable tagged release to use --> 0.7.206)_
+_(stable tagged release to use --> 0.7.207)_
 
 **beta release**
 
