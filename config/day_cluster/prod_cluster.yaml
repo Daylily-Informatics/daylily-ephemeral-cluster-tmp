@@ -18,10 +18,7 @@ HeadNode:
       VolumeType: gp3
       DeleteOnTermination: REGSUB_DELETE_LOCAL_ROOT
     EphemeralVolume:
-      MountDir: /scratch  # ~$0.034/hr
-      Size: 300              # 300 GiB
-      VolumeType: gp3
-      DeleteOnTermination: true  # Explicitly recommended
+      MountDir: /head_root
   CustomActions:
     OnNodeConfigured:
       Script: REGSUB_S3_BUCKET_INIT/cluster_boot_config/post_install_ubuntu_combined.sh # head and each compute can have different scripts if desired
@@ -61,12 +58,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 100             # 100 GiB ~$0.013/hr
-              VolumeType: gp3
-              DeleteOnTermination: true  # Explicitly recommended
         - Name: r6gb64
           Instances:
           - InstanceType: r6i.2xlarge
@@ -78,12 +69,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 100      # ~ $0.013/hr        
-              VolumeType: gp3
-              DeleteOnTermination: true  # Explicitly recommended
       Networking:
         SubnetIds:
           - REGSUB_PRIVATE_SUBNET
@@ -118,14 +103,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 500              #  ~$0.1625/hr
-              VolumeType: gp3
-              Iops: 16000            # Max gp3 IOPS
-              Throughput: 1000       # Max gp3 throughput in MiB/s
-              DeleteOnTermination: true  # Explicitly recommended
         - Name: m6gb512
           Instances:
             - InstanceType: m6i.32xlarge 
@@ -138,14 +115,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 500              
-              VolumeType: gp3
-              Iops: 16000            # Max gp3 IOPS
-              Throughput: 1000       # Max gp3 throughput in MiB/
-              DeleteOnTermination: true  # Explicitly recommendeds
         - Name: r6gb1024r6
           Instances:
             - InstanceType: r6i.metal 
@@ -158,14 +127,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 500              # 
-              VolumeType: gp3
-              Iops: 16000            # Max gp3 IOPS
-              Throughput: 1000       # Max gp3 throughput in MiB/s
-              DeleteOnTermination: true  # Explicitly recommended
       Networking:
         SubnetIds:
           - REGSUB_PRIVATE_SUBNET
@@ -204,14 +165,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 500              # 
-              VolumeType: gp3
-              Iops: 16000            # Max gp3 IOPS
-              Throughput: 1000       # Max gp3 throughput in MiB/s           
-              DeleteOnTermination: true  # Explicitly recommended
       Networking:
         SubnetIds:
           - REGSUB_PRIVATE_SUBNET
@@ -248,14 +201,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 600  #0.1625/hr
-              VolumeType: gp3
-              Iops: 16000            # Max gp3 IOPS
-              Throughput: 1000       # Max gp3 throughput in MiB/s
-              DeleteOnTermination: true  # Explicitly recommended
       Networking:
         SubnetIds:
           - REGSUB_PRIVATE_SUBNET
@@ -290,14 +235,6 @@ Scheduling:
               Enabled: false
           Efa:
             Enabled: false
-          LocalStorage:
-            EphemeralVolume:
-              MountDir: /scratch
-              Size: 600             
-              VolumeType: gp3
-              Iops: 16000            # Max gp3 IOPS
-              Throughput: 1000       # Max gp3 throughput in MiB/s
-              DeleteOnTermination: true  # Explicitly recommended
       Networking:
         SubnetIds:
           - REGSUB_PRIVATE_SUBNET
