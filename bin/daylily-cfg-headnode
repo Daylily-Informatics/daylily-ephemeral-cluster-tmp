@@ -102,13 +102,13 @@ echo "(optional) save this SSH key in GitHub to your settings->ssh/gpg keys, whi
 sleep 15
 echo "Building the Daylily container on the head node..."
 # Pull the Daylily container using Singularity
-ssh -i "$pem_file" ubuntu@"$cluster_ip_address"  -o StrictHostKeyChecking=no   -o UserKnownHostsFile=/dev/null  \
+ssh -t -i "$pem_file" ubuntu@"$cluster_ip_address"  -o StrictHostKeyChecking=no   -o UserKnownHostsFile=/dev/null  \
     " $daylily_image_cmd " 
 
 # Clone the Daylily repository to the head node
 echo "Cloning Daylily repository using https to the head node ~/projects"
-ssh -i "$pem_file" ubuntu@"$cluster_ip_address"  -o StrictHostKeyChecking=no   -o UserKnownHostsFile=/dev/null \
-    "sudo su - $duser -c 'mkdir -p ~/projects && cd ~/projects &&  git clone -b ${git_analysis_repo_tag} ${git_analysis_repo_ssh} daylily-omics-analysis'"
+ssh -t -i "$pem_file" ubuntu@"$cluster_ip_address"  -o StrictHostKeyChecking=no   -o UserKnownHostsFile=/dev/null \
+    "mkdir -p ~/projects && cd ~/projects &&  git clone -b ${git_analysis_repo_tag} ${git_analysis_repo_ssh} daylily-omics-analysis"
 
 # Initialize and configure the Daylily environment on the head node
 echo "Configuring Daylily environment on the head node..."
