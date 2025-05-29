@@ -77,6 +77,14 @@ if [[ -z "$region_az" ]]; then
     exit 3  # Exit the function with an error status
 fi
 
+if  yq --version &> /dev/null; then
+    echo "yq is installed, proceeding."
+else
+    echo "❌ Error: yq is not detected."
+    echo "Please run conda activate DAYCLI (or bash bin/init_daycli) to proceed."
+    exit 3  # Exit the function with an error status
+fi
+
 # Load the environment variables from .env file
 if [ -f $CONFIG_FILE ]; then
     echo "Loading configuration from $CONFIG_FILE"
