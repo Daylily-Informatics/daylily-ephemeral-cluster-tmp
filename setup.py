@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="daylily-ephemeral-cluster",
-    version="0.7.210",
+    version="0.7.212",
     packages=find_packages(),
     install_requires=[
         # Add dependencies here
