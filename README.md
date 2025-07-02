@@ -1,3 +1,11 @@
+# THE ACTIVE REPO CAN BE FOUND HERE: https://github.com/Daylily-Informatics/daylily-ephemeral-cluster
+
+https://github.com/Daylily-Informatics/daylily-ephemeral-cluster
+
+---
+
+# FOR ARCHIVAL PURPOSES
+
 # Daylily Ephemeral Cluster
 _(stable tagged release to use --> 0.7.213)_
 
